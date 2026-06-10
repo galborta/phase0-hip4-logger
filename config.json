@@ -1,0 +1,11 @@
+{
+  "_comment": "OPENER — Mexico vs South Africa, June 11 2026, 3:00pm ET (19:00 UTC), Estadio Azteca. HIP-4 coins (Yes side, merged book): #2480=Mexico win, #2490=Draw, #2500=South Africa win.",
+  "coins": ["#2480", "#2490", "#2500"],
+  "espn": {
+    "league": "fifa.world",
+    "event_id": "760415",
+    "date": "20260611",
+    "team_coin": { "203": "#2480", "467": "#2500" },
+    "draw_coin": "#2490"
+  }
+}

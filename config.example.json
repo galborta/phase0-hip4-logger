@@ -1,0 +1,4 @@
+{
+  "_comment": "Copy to config.json. Put the outcome COIN NAMES you want to log here. Find them with: python discover_markets.py --grep <team>. Coin name = '#<encoding>' where encoding = 10*outcome + side. For a binary market, side 0 and side 1 are the two halves of the merged book; logging side 0 is usually enough.",
+  "coins": ["#10", "#11"]
+}
