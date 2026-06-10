@@ -12,12 +12,24 @@
 
 cd "$(dirname "$0")" || exit 1
 
-if [ ! -d ".venv" ]; then
+if [ ! -x ".venv/bin/python" ]; then
   echo "First run: creating venv + installing deps..."
   python3 -m venv .venv
+  if [ ! -x ".venv/bin/python" ]; then
+    echo ""
+    echo "ERROR: venv was not created. On Ubuntu/Debian install the venv package first:"
+    echo "    sudo apt-get update && sudo apt-get install -y python3-venv"
+    echo "    (on Ubuntu 24.04 the package is python3.12-venv)"
+    echo "Then re-run:  bash run_on_vps.sh"
+    exit 1
+  fi
   ./.venv/bin/pip install -q --upgrade pip
-  ./.venv/bin/pip install -q -r requirements.txt
+  ./.venv/bin/pip install -q -r requirements.txt || { echo "ERROR: pip install failed"; exit 1; }
 fi
+
+# sanity: deps importable
+./.venv/bin/python -c "import websockets" 2>/dev/null || {
+  echo "ERROR: websockets not installed in venv. Run: ./.venv/bin/pip install -r requirements.txt"; exit 1; }
 
 mkdir -p data
 echo "Launching detached. It will wait for kickoff and write data/REPORT.txt when done."
