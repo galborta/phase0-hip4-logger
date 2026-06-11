@@ -1,11 +1,41 @@
 {
-  "_comment": "OPENER — Mexico vs South Africa, June 11 2026, 3:00pm ET (19:00 UTC), Estadio Azteca. HIP-4 coins (Yes side, merged book): #2480=Mexico win, #2490=Draw, #2500=South Africa win.",
-  "coins": ["#2480", "#2490", "#2500"],
-  "espn": {
-    "league": "fifa.world",
-    "event_id": "760415",
-    "date": "20260611",
-    "team_coin": { "203": "#2480", "467": "#2500" },
-    "draw_coin": "#2490"
-  }
+  "_comment": "MULTI-MATCH Phase 0 queue. The orchestrator captures each match in turn into data/<label>/ with its own REPORT.txt. ESPN ids are final; the #coin values are PLACEHOLDERS — fill them from `python discover_markets.py` on a networked box (each WC match exposes 3 outcome markets: home-win / draw / away-win; use the Yes/side-0 coin of each). coins order = [home_win, draw, away_win].",
+  "matches": [
+    {
+      "label": "CZE_KOR",
+      "_match": "Czechia vs South Korea — 2026-06-12 02:00 UTC (KOR home id 451, CZE away id 450)",
+      "coins": ["#KOR_WIN", "#DRAW", "#CZE_WIN"],
+      "espn": {
+        "league": "fifa.world",
+        "event_id": "760414",
+        "date": "20260611",
+        "team_coin": { "451": "#KOR_WIN", "450": "#CZE_WIN" },
+        "draw_coin": "#DRAW"
+      }
+    },
+    {
+      "label": "BIH_CAN",
+      "_match": "Bosnia-Herzegovina vs Canada — 2026-06-12 19:00 UTC (CAN home id 206, BIH away id 452)",
+      "coins": ["#CAN_WIN", "#DRAW", "#BIH_WIN"],
+      "espn": {
+        "league": "fifa.world",
+        "event_id": "760416",
+        "date": "20260612",
+        "team_coin": { "206": "#CAN_WIN", "452": "#BIH_WIN" },
+        "draw_coin": "#DRAW"
+      }
+    },
+    {
+      "label": "PAR_USA",
+      "_match": "Paraguay vs United States — 2026-06-13 01:00 UTC (USA home id 660, PAR away id 210)",
+      "coins": ["#USA_WIN", "#DRAW", "#PAR_WIN"],
+      "espn": {
+        "league": "fifa.world",
+        "event_id": "760417",
+        "date": "20260612",
+        "team_coin": { "660": "#USA_WIN", "210": "#PAR_WIN" },
+        "draw_coin": "#DRAW"
+      }
+    }
+  ]
 }

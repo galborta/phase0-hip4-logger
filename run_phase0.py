@@ -13,6 +13,10 @@ You come back to a finished report. No manual commands during the match.
 
     python run_phase0.py --config config.json --outdir data
 
+Config: either a single-match shape ({"coins": [...], "espn": {...}}) or a
+multi-match queue ({"matches": [{label, coins, espn}, ...]}). In multi-match mode
+each match is captured in turn into data/<label>/ with its own REPORT.txt.
+
 Options:
     --buffer 180     seconds to keep logging after full-time (default 180)
     --pre 15         minutes before kickoff to start book logging (default 15)
@@ -124,6 +128,10 @@ async def espn_poller(cfg, outdir, interval, pre_s, buffer_s, max_s, force, acti
     kickoff = None
     post_since = None
     started = time.time()
+    active_since = None
+    # Absolute ceiling so the process never waits forever if the event never
+    # appears / kickoff is never detected. Generous enough to launch a day early.
+    ABS_MAX_WAIT_S = 72 * 3600
     last_state = None
     loop = asyncio.get_event_loop()
 
@@ -179,9 +187,22 @@ async def espn_poller(cfg, outdir, interval, pre_s, buffer_s, max_s, force, acti
             if decision == "active" and not active.is_set():
                 log("entering ACTIVE window — book logging on")
                 active.set()
-            if decision == "stop" or (now - started) > max_s:
-                if (now - started) > max_s:
-                    log("max duration hit; stopping")
+                active_since = now
+            # Hard stops, in priority order:
+            #   1. normal full-time + buffer (decision == "stop")
+            #   2. safety cap measured from when logging went ACTIVE (kickoff),
+            #      NOT from process start — so launching a day early is fine
+            #   3. absolute ceiling in case kickoff is never detected
+            stop_now = False
+            if decision == "stop":
+                stop_now = True
+            elif active_since is not None and (now - active_since) > max_s:
+                log("max active duration hit; stopping")
+                stop_now = True
+            elif (now - started) > ABS_MAX_WAIT_S:
+                log("absolute wait ceiling hit (event never went live?); stopping")
+                stop_now = True
+            if stop_now:
                 stop.set()
                 active.set()  # release book logger if it was still waiting
                 break
@@ -190,28 +211,42 @@ async def espn_poller(cfg, outdir, interval, pre_s, buffer_s, max_s, force, acti
         await asyncio.sleep(interval)
 
 
-async def amain(args):
-    with open(args.config) as f:
-        cfg = json.load(f)
-    if "espn" not in cfg:
-        raise SystemExit("config.json needs an 'espn' block.")
-    os.makedirs(args.outdir, exist_ok=True)
-    writer = Writer(args.outdir)
+def _slug(s):
+    keep = "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(s))
+    return keep.strip("_") or "match"
+
+
+def _has_book_data(outdir):
+    """True if this match dir already holds captured book lines — so a process
+    restart resumes to the NEXT match instead of clobbering a good capture."""
+    import glob
+    for p in glob.glob(os.path.join(outdir, "l2book_*.jsonl")):
+        try:
+            with open(p) as f:
+                if f.readline().strip():
+                    return True
+        except OSError:
+            pass
+    return False
+
+
+async def run_one_match(match_cfg, outdir, args, log):
+    """Capture a single match end-to-end into its own outdir, then analyze it."""
+    label = match_cfg.get("label", "match")
+    if _has_book_data(outdir):
+        log(f"[{label}] already has captured book data in {outdir}; skipping (resume).")
+        return
+    os.makedirs(outdir, exist_ok=True)
+    writer = Writer(outdir)
     active, stop = asyncio.Event(), asyncio.Event()
-    logfile = open(os.path.join(args.outdir, "run.log"), "a", buffering=1)
 
-    def log(line):
-        s = f"{now_iso()}  {line}"
-        print(s, flush=True)
-        logfile.write(s + "\n")
-
-    log(f"=== Phase 0 orchestrator start; coins={cfg['coins']} ===")
+    log(f"=== MATCH '{label}' start; coins={match_cfg['coins']} -> {outdir} ===")
     if not args.force_start:
-        log("waiting for kickoff window... (safe to leave running; come back to data/REPORT.txt)")
+        log(f"[{label}] waiting for kickoff window... (safe to leave running)")
 
     tasks = [
-        asyncio.create_task(book_logger(cfg["coins"], writer, active, stop, log)),
-        asyncio.create_task(espn_poller(cfg, args.outdir, args.interval, args.pre,
+        asyncio.create_task(book_logger(match_cfg["coins"], writer, active, stop, log)),
+        asyncio.create_task(espn_poller(match_cfg, outdir, args.interval, args.pre,
                                         args.buffer, args.max_hours * 3600,
                                         args.force_start, active, stop, log)),
     ]
@@ -222,14 +257,46 @@ async def amain(args):
     await asyncio.gather(*tasks, return_exceptions=True)
     writer.close()
 
-    log("running analysis...")
-    report = os.path.join(args.outdir, "REPORT.txt")
+    log(f"[{label}] running analysis...")
+    report = os.path.join(outdir, "REPORT.txt")
     here = os.path.dirname(os.path.abspath(__file__))
     with open(report, "w") as rf:
         proc = subprocess.run([sys.executable, os.path.join(here, "analyze.py"),
-                               "--data", args.outdir],
+                               "--data", outdir],
                               stdout=rf, stderr=subprocess.STDOUT)
-    log(f"=== DONE. Report written to {report} (exit {proc.returncode}) ===")
+    log(f"=== MATCH '{label}' DONE. Report -> {report} (exit {proc.returncode}) ===")
+
+
+async def amain(args):
+    with open(args.config) as f:
+        cfg = json.load(f)
+    os.makedirs(args.outdir, exist_ok=True)
+    logfile = open(os.path.join(args.outdir, "run.log"), "a", buffering=1)
+
+    def log(line):
+        s = f"{now_iso()}  {line}"
+        print(s, flush=True)
+        logfile.write(s + "\n")
+
+    # Accept either a multi-match config ({"matches": [...]}) or the legacy
+    # single-match shape ({"coins": [...], "espn": {...}}).
+    if "matches" in cfg:
+        matches = cfg["matches"]
+    elif "espn" in cfg:
+        matches = [{"label": cfg.get("label", "match"),
+                    "coins": cfg["coins"], "espn": cfg["espn"]}]
+    else:
+        raise SystemExit("config.json needs either a 'matches' list or an 'espn' block.")
+
+    log(f"=== Phase 0 orchestrator start; {len(matches)} match(es) queued ===")
+    for m in matches:
+        m.setdefault("label", m.get("espn", {}).get("event_id", "match"))
+        sub = os.path.join(args.outdir, _slug(m["label"]))
+        try:
+            await run_one_match(m, sub, args, log)
+        except Exception as e:
+            log(f"[{m['label']}] FATAL {e!r}; moving on to next match")
+    log("=== ALL MATCHES DONE ===")
     logfile.close()
 
 
@@ -240,7 +307,8 @@ def main():
     ap.add_argument("--interval", type=float, default=3.0, help="ESPN poll seconds")
     ap.add_argument("--pre", type=float, default=15.0, help="minutes before kickoff to start logging")
     ap.add_argument("--buffer", type=float, default=180.0, help="seconds to log after full time")
-    ap.add_argument("--max-hours", type=float, default=5.0, help="hard safety stop")
+    ap.add_argument("--max-hours", type=float, default=5.0,
+                    help="safety stop measured from kickoff/active, not process start")
     ap.add_argument("--force-start", action="store_true", help="log now, skip the wait")
     args = ap.parse_args()
     try:
