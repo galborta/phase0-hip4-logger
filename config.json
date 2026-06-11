@@ -1,40 +1,40 @@
 {
-  "_comment": "MULTI-MATCH Phase 0 queue. The orchestrator captures each match in turn into data/<label>/ with its own REPORT.txt. ESPN ids are final; the #coin values are PLACEHOLDERS — fill them from `python discover_markets.py` on a networked box (each WC match exposes 3 outcome markets: home-win / draw / away-win; use the Yes/side-0 coin of each). coins order = [home_win, draw, away_win].",
+  "_comment": "MULTI-MATCH Phase 0 queue. The orchestrator captures each match in turn into data/<label>/ with its own REPORT.txt. Coins are the Yes/side-0 outcome of each market (coin = #<10*outcome>), taken from Hyperliquid outcomeMeta questions Q38/Q37/Q35. coins order = [home_win, draw, away_win].",
   "matches": [
     {
       "label": "CZE_KOR",
-      "_match": "Czechia vs South Korea — 2026-06-12 02:00 UTC (KOR home id 451, CZE away id 450)",
-      "coins": ["#KOR_WIN", "#DRAW", "#CZE_WIN"],
+      "_match": "Korea Republic (home, ESPN 451) vs Czechia (away, ESPN 450) — 2026-06-12 02:00 UTC. HL Q38: KOR=#2440, Draw=#2450, CZE=#2460.",
+      "coins": ["#2440", "#2450", "#2460"],
       "espn": {
         "league": "fifa.world",
         "event_id": "760414",
         "date": "20260611",
-        "team_coin": { "451": "#KOR_WIN", "450": "#CZE_WIN" },
-        "draw_coin": "#DRAW"
+        "team_coin": { "451": "#2440", "450": "#2460" },
+        "draw_coin": "#2450"
       }
     },
     {
       "label": "BIH_CAN",
-      "_match": "Bosnia-Herzegovina vs Canada — 2026-06-12 19:00 UTC (CAN home id 206, BIH away id 452)",
-      "coins": ["#CAN_WIN", "#DRAW", "#BIH_WIN"],
+      "_match": "Canada (home, ESPN 206) vs Bosnia-Herzegovina (away, ESPN 452) — 2026-06-12 19:00 UTC. HL Q37: CAN=#2400, Draw=#2410, BIH=#2420.",
+      "coins": ["#2400", "#2410", "#2420"],
       "espn": {
         "league": "fifa.world",
         "event_id": "760416",
         "date": "20260612",
-        "team_coin": { "206": "#CAN_WIN", "452": "#BIH_WIN" },
-        "draw_coin": "#DRAW"
+        "team_coin": { "206": "#2400", "452": "#2420" },
+        "draw_coin": "#2410"
       }
     },
     {
       "label": "PAR_USA",
-      "_match": "Paraguay vs United States — 2026-06-13 01:00 UTC (USA home id 660, PAR away id 210)",
-      "coins": ["#USA_WIN", "#DRAW", "#PAR_WIN"],
+      "_match": "United States (home, ESPN 660) vs Paraguay (away, ESPN 210) — 2026-06-13 01:00 UTC. HL Q35: USA=#2310, Draw=#2320, PAR=#2330.",
+      "coins": ["#2310", "#2320", "#2330"],
       "espn": {
         "league": "fifa.world",
         "event_id": "760417",
         "date": "20260612",
-        "team_coin": { "660": "#USA_WIN", "210": "#PAR_WIN" },
-        "draw_coin": "#DRAW"
+        "team_coin": { "660": "#2310", "210": "#2330" },
+        "draw_coin": "#2320"
       }
     }
   ]
